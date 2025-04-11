@@ -1,0 +1,12 @@
+*.tfstate
+*.tfstate.*
+.terraform/
+.crash
+*.log
+*.bak
+*.backup
+*.zip
+*.pem
+*.key
+*.env
+
