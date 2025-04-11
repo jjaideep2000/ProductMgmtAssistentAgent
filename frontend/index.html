@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PM Assistant</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    input, button { padding: 10px; width: 100%; margin-top: 10px; }
+    #response { margin-top: 20px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>PM AI Assistant</h2>
+  <input type="text" id="userInput" placeholder="Enter your product question..." />
+  <button onclick="submitQuery()">Submit</button>
+
+  <div id="response"></div>
+
+  <script>
+    const apiEndpoint = 'https://{apiEndpoint}}/prod/agent'; // replace
+
+    async function submitQuery() {
+      const input = document.getElementById('userInput').value;
+      const resDiv = document.getElementById('response');
+      resDiv.textContent = "🔄 Thinking...";
+
+      try {
+        const res = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input })
+        });
+
+        const data = await res.json();
+        resDiv.textContent = `Category: ${data.category}\n💬 Answer:\n${data.answer}`;
+      } catch (err) {
+        resDiv.textContent = "Error: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

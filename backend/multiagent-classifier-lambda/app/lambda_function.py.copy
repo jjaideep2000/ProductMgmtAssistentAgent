@@ -1,0 +1,99 @@
+import json
+import boto3
+
+# Constants
+BEDROCK_REGION = "us-east-1"
+MODEL_ID = "amazon.nova-micro-v1:0"
+CLASS_OPTIONS = ["Feature", "Insight", "Competitive"]
+
+# Initialize Bedrock client
+print("🔧 Initializing Bedrock client...")
+bedrock_runtime = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+
+def build_prompt(user_input):
+    return (
+        "You are a smart AI classifier for product manager queries. "
+        "Classify the following query into one of the following categories: Feature, Insight, or Competitive. "
+        "Respond with only the category name.\n"
+        f'Input: "{user_input}"\nCategory:'
+    )
+
+def lambda_handler(event, context):
+    print("🟢 Lambda handler invoked.")
+    print(f"📦 Incoming event: {event}")
+
+    try:
+        # Parse input body
+        body = {}
+        if isinstance(event.get("body"), str):
+            body = json.loads(event["body"])
+        elif isinstance(event.get("body"), dict):
+            body = event["body"]
+        elif "input" in event:
+            body = event
+
+        user_input = body.get("input", "").strip()
+        if not user_input:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": "Missing 'input' in request body"})
+            }
+
+        prompt = build_prompt(user_input)
+        print(f"🧠 Prompt sent to Nova Micro:\n{prompt}")
+
+        response = bedrock_runtime.invoke_model(
+            modelId=MODEL_ID,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            { "text": prompt }
+                        ]
+                    }
+                ]
+            })
+        )
+
+        response_body = json.loads(response["body"].read())
+
+        # 🔍 Log full response from Bedrock
+        print("📦 Full response from Bedrock:")
+        print(json.dumps(response_body, indent=2))
+
+        # Extract and process response
+        # messages = response_body.get("messages", [])
+        # if messages and isinstance(messages[0].get("content"), list):
+        #    raw_output = messages[0]["content"][0].get("text", "").strip()
+        # else:
+        #    raw_output = ""
+
+        # print(f"📬 Model raw output: {raw_output}") 
+
+        # ✅ Extract from "output" > "message" > "content" > [0] > "text"
+        raw_output = response_body["output"]["message"]["content"][0]["text"].strip()
+        print(f"📬 Model raw output: {raw_output}")
+
+        # predicted_category = raw_output.split()[0].capitalize() if raw_output else "Unknown"
+        # if predicted_category not in CLASS_OPTIONS:
+        #    predicted_category = "Unknown"
+
+        predicted_category = raw_output.split()[0].capitalize()
+        if predicted_category not in CLASS_OPTIONS:
+            predicted_category = "Unknown"
+
+        print(f"✅ Final Classification: {predicted_category}")
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"category": predicted_category})
+        }
+
+    except Exception as e:
+        print(f"❌ Error during classification: {e}")
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": str(e)})
+        }
